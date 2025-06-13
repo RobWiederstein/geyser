@@ -1,11 +1,6 @@
-# Dockerfile for Geyser Shiny App
-#
-# Diagnosis:
-# The application failed during initialization due to missing jsonlite.
-# This Dockerfile installs renv, restores dependencies, installs jsonlite,
-# and copies the app code from geyser/.
-
-FROM rocker/shiny:4.2.2
+# ==> Stage 1: Build the R environment and restore packages <==
+# Use a specific version of the rocker/r-ver image for reproducibility
+FROM rocker/r-ver:4.3.3 AS builder
 
 # Install system dependencies required by common R packages
 RUN apt-get update && \
@@ -16,31 +11,33 @@ RUN apt-get update && \
        libgit2-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Set working directory for the Shiny app
-WORKDIR /srv/shiny-server/geyser
+# Install the renv package itself
+RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org/')"
 
-# Copy renv lockfile and project files
-COPY geyser/renv.lock ./renv.lock
+# Set up the application directory
+WORKDIR /app
 
-# Install renv and restore locked R package dependencies
-RUN R -e "install.packages('renv', repos='https://cloud.r-project.org')" && \
-    R -e "renv::restore(prompt = FALSE)"
+# Copy the renv lockfile. This step is cached by Docker.
+# The build will only re-run from here if renv.lock changes.
+COPY geyser/renv.lock .
 
-# Ensure jsonlite is available for Shiny runtime
-RUN R -e "install.packages('jsonlite', repos='https://cloud.r-project.org')"
+# Restore the R packages from the lockfile.
+# The `renv.consent = TRUE` option prevents interactive prompts during the build.
+RUN R -e "options(renv.consent = TRUE); renv::restore()"
 
-# Copy the rest of the application code
-COPY geyser/ ./
 
-# Ensure Shiny Server user owns the app directory
-RUN chown -R shiny:shiny /srv/shiny-server/geyser
+# ==> Stage 2: Create the final Shiny Server image <==
+# Use the rocker/shiny image, which has Shiny Server pre-installed
+FROM rocker/shiny:4.3.3
 
-# Expose Shiny Server port
+# Copy the restored R package library from the builder stage
+COPY --from=builder /usr/local/lib/R/site-library /usr/local/lib/R/site-library
+
+# Copy the application source code into the directory Shiny Server uses
+COPY geyser /srv/shiny-server/geyser
+
+# Expose the default Shiny Server port
 EXPOSE 3838
 
-# Switch to non-root user
-USER shiny
-
-# Launch Shiny Server
-CMD ["/usr/bin/shiny-server"]
-
+# The base rocker/shiny image already includes the correct CMD
+# to launch the server, so you don't need to specify it again.
