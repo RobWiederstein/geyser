@@ -44,18 +44,18 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-        script: |
-          # Log in to Docker Hub on the droplet
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" |
-            docker login \
-              --username "$${{ secrets.DOCKERHUB_USERNAME }}" \
-              --password-stdin
-          
-          # Pull and run the updated container
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
-          docker rm -f geyser || true
-          docker run -d \
-            --name geyser \
-            -p 3838:3838 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
+          script: |
+            # Log in to Docker Hub on the droplet
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" |
+              docker login \
+                --username "${{ secrets.DOCKERHUB_USERNAME }}" \
+                --password-stdin
+            
+            # Pull and run the updated container
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
+            docker rm -f geyser || true
+            docker run -d \
+              --name geyser \
+              -p 3838:3838 \
+              ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
 
