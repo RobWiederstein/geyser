@@ -36,6 +36,11 @@ COPY --from=builder /usr/local/lib/R/site-library /usr/local/lib/R/site-library
 # Copy the application source code into the directory Shiny Server uses
 COPY geyser /srv/shiny-server/geyser
 
+# --- THIS IS THE FIX ---
+# Change the ownership of the app directory to the shiny user
+# This gives the server permission to write to the renv library
+RUN chown -R shiny:shiny /srv/shiny-server/geyser
+
 # Expose the default Shiny Server port
 EXPOSE 3838
 
