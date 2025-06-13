@@ -31,21 +31,23 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: \${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
-
   deploy-to-droplet:
     needs: build-and-push
     runs-on: ubuntu-latest
+
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: \${{ secrets.SSH_HOST }}
-          username: \${{ secrets.SSH_USER }}
-          key: \${{ secrets.SSH_KEY }}
-        script: |
-          docker pull \${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
-          docker rm -f geyser || true
-          docker run -d \\
-            --name geyser \\
-            -p 3838:3838 \\
-            \${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          # port: ${{ secrets.SSH_PORT }}   # if non-standard
+          script: |
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
+            docker rm -f geyser || true
+            docker run -d \
+              --name geyser \
+              -p 3838:3838 \
+              ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
+
