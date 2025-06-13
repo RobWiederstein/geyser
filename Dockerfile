@@ -1,6 +1,13 @@
+# Dockerfile for Geyser Shiny App
+#
+# Diagnosis:
+# The application failed during initialization due to missing jsonlite.
+# This Dockerfile installs renv, restores dependencies, installs jsonlite,
+# and copies the app code from geyser/.
+
 FROM rocker/shiny:4.2.2
 
-# Install system dependencies required by common R packages (SSL, XML, CURL, Git)
+# Install system dependencies required by common R packages
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
        libssl-dev \
@@ -9,24 +16,29 @@ RUN apt-get update && \
        libgit2-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy renv lockfile first to leverage Docker cache for dependencies
-COPY geyser/renv.lock /srv/shiny-server/geyser/renv.lock
+# Set working directory for the Shiny app
 WORKDIR /srv/shiny-server/geyser
 
-# Install renv and jsonlite, then restore R package dependencies
-RUN R -e "install.packages(c('renv','jsonlite'), repos='https://cloud.r-project.org')" && \
+# Copy renv lockfile and project files
+COPY geyser/renv.lock ./renv.lock
+
+# Install renv and restore locked R package dependencies
+RUN R -e "install.packages('renv', repos='https://cloud.r-project.org')" && \
     R -e "renv::restore(prompt = FALSE)"
 
-# Copy the rest of the application code (app.R, .Rprofile, etc.)
-COPY geyser/ /srv/shiny-server/geyser/
+# Ensure jsonlite is available for Shiny runtime
+RUN R -e "install.packages('jsonlite', repos='https://cloud.r-project.org')"
 
-# Ensure the Shiny Server 'shiny' user owns the app directory
+# Copy the rest of the application code
+COPY geyser/ ./
+
+# Ensure Shiny Server user owns the app directory
 RUN chown -R shiny:shiny /srv/shiny-server/geyser
 
-# Expose Shiny Server (default port)
+# Expose Shiny Server port
 EXPOSE 3838
 
-# Switch to the non-root 'shiny' user for security
+# Switch to non-root user
 USER shiny
 
 # Launch Shiny Server
