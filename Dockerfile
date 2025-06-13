@@ -1,11 +1,3 @@
-# Dockerfile for Geyser Shiny App
-#
-# Diagnosis:
-# The `Error: The application exited during initialization` was caused by missing
-# system libraries required by various R packages (e.g., SSL, XML, CURL, Git).
-# Without these native dependencies, `renv::restore()` may have silently failed
-# to install certain packages, leading to the app crashing on startup.
-
 FROM rocker/shiny:4.2.2
 
 # Install system dependencies required by common R packages (SSL, XML, CURL, Git)
@@ -21,10 +13,8 @@ RUN apt-get update && \
 COPY geyser/renv.lock /srv/shiny-server/geyser/renv.lock
 WORKDIR /srv/shiny-server/geyser
 
-# Install renv, ensure jsonlite is available, and restore R package dependencies
+# Install renv and jsonlite, then restore R package dependencies
 RUN R -e "install.packages(c('renv','jsonlite'), repos='https://cloud.r-project.org')" && \
-    R -e "renv::restore(prompt = FALSE)" (prompt suppressed)
-RUN R -e "install.packages('renv', repos='https://cloud.r-project.org')" && \
     R -e "renv::restore(prompt = FALSE)"
 
 # Copy the rest of the application code (app.R, .Rprofile, etc.)
