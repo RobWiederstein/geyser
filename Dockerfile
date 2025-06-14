@@ -22,11 +22,10 @@ COPY geyser/renv.lock .
 # Restore the R packages from the lockfile. This creates the private renv library.
 RUN R -e "options(renv.consent = TRUE); renv::restore()"
 
-# --- THE DEFINITIVE FIX ---
-# Set the R_LIBS_USER environment variable. This forces all R sessions
-# started in this container to look for packages in our renv library path,
-# bypassing any issues with .Rprofile not being sourced.
-ENV R_LIBS_USER /srv/shiny-server/geyser/renv/library/R-4.3/x86_64-pc-linux-gnu
+# --- THE NEW DEFINITIVE FIX ---
+# Modify the site-wide R environment file to force all R sessions to use
+# our renv library. This is more robust than an ENV var that might get dropped.
+RUN echo "R_LIBS_USER=/srv/shiny-server/geyser/renv/library/R-4.3/x86_64-pc-linux-gnu" >> "$(R RHOME)/etc/Renviron.site"
 
 # Now copy the rest of your application files into the WORKDIR
 COPY geyser/ .
