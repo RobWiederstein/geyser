@@ -25,27 +25,22 @@ RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org/')"
 WORKDIR /srv/shiny-server/geyser
 
 # 4. Copy renv files first to leverage Docker caching.
-# The renv::restore() step will only re-run if these files change.
 COPY geyser/renv.lock .
 COPY geyser/.Rprofile .
 COPY geyser/renv/activate.R renv/activate.R
 
-# 5. Restore the renv project library. This will install packages
-# into the project-local library: /srv/shiny-server/geyser/renv/library/
+# 5. Restore the renv project library.
 RUN R -e "options(renv.consent = TRUE); renv::restore()"
 
 # 6. Now copy the rest of your application files
 COPY geyser/ .
 
-# 7. Configure Shiny Server idempotently.
-# This command checks if the 'run_as :HOME_USER:' line already exists.
-# It only adds the line if it's not found, preventing duplicate entries.
-RUN if ! grep -q "run_as :HOME_USER:;" /etc/shiny-server/shiny-server.conf; then \
-      printf "\n# Run applications as the user who owns the app directory\nrun_as :HOME_USER:;\n" >> /etc/shiny-server/shiny-server.conf; \
-    fi
+# 7. Copy our custom shiny-server.conf into the image, overwriting the default.
+# This is the new, robust way to configure the server.
+COPY shiny-server.conf /etc/shiny-server/shiny-server.conf
 
 # 8. Set correct ownership for the shiny user.
-# The :HOME_USER: directive above will now resolve to 'shiny'.
+# The :HOME_USER: directive in our config will now resolve to 'shiny'.
 RUN chown -R shiny:shiny /srv/shiny-server/geyser
 
 # 9. Expose the default Shiny Server port
