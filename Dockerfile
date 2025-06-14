@@ -1,8 +1,7 @@
-# ==> Stage 1: Build the R environment and restore packages <==
-# Use a specific version of the rocker/r-ver image for reproducibility
-FROM rocker/r-ver:4.3.3 AS builder
+# Use the rocker/shiny image directly as our one and only stage
+FROM rocker/shiny:4.3.3
 
-# Install system dependencies required by common R packages
+# Install system dependencies that your R packages might need
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
        libssl-dev \
@@ -11,34 +10,28 @@ RUN apt-get update && \
        libgit2-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Install the renv package itself
+# Install renv itself
 RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org/')"
 
-# Set up the application directory
-WORKDIR /app
+# Create and set the final working directory for the app
+WORKDIR /srv/shiny-server/geyser
 
-# Copy the renv lockfile. This step is cached by Docker.
-# The build will only re-run from here if renv.lock changes.
+# Copy the renv lockfile. Caching this layer speeds up future builds.
 COPY geyser/renv.lock .
 
-# Restore the R packages from the lockfile.
-# The `renv.consent = TRUE` option prevents interactive prompts during the build.
+# Restore the R packages from the lockfile. This creates the private renv library.
 RUN R -e "options(renv.consent = TRUE); renv::restore()"
 
+# --- THE DEFINITIVE FIX ---
+# Set the R_LIBS_USER environment variable. This forces all R sessions
+# started in this container to look for packages in our renv library path,
+# bypassing any issues with .Rprofile not being sourced.
+ENV R_LIBS_USER /srv/shiny-server/geyser/renv/library/R-4.3/x86_64-pc-linux-gnu
 
-# ==> Stage 2: Create the final Shiny Server image <==
-# Use the rocker/shiny image, which has Shiny Server pre-installed
-FROM rocker/shiny:4.3.3
+# Now copy the rest of your application files into the WORKDIR
+COPY geyser/ .
 
-# Copy the restored R package library from the builder stage
-COPY --from=builder /usr/local/lib/R/site-library /usr/local/lib/R/site-library
-
-# Copy the application source code into the directory Shiny Server uses
-COPY geyser /srv/shiny-server/geyser
-
-# --- THIS IS THE FIX ---
-# Change the ownership of the app directory to the shiny user
-# This gives the server permission to write to the renv library
+# Fix permissions for the shiny user on the app directory.
 RUN chown -R shiny:shiny /srv/shiny-server/geyser
 
 # Expose the default Shiny Server port
