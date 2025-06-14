@@ -1,6 +1,6 @@
 # Use the rocker/shiny image as the base.
 # It includes R and Shiny Server, providing a complete environment.
-FROM rocker/shiny:4.4.0 # Ensure this R version matches your renv.lock
+FROM rocker/shiny:4.4.0
 
 # 1. Install system-level dependencies required by your R packages.
 #    This includes libraries for common R packages (e.g., xml, curl, png, jpeg).
