@@ -1,5 +1,5 @@
 # app.R
-
+print(.libPaths())
 library(shiny)
 
 # Define UI for application that draws a histogram
