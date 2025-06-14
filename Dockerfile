@@ -37,11 +37,12 @@ RUN R -e "options(renv.consent = TRUE); renv::restore()"
 # 6. Now copy the rest of your application files
 COPY geyser/ .
 
-# 7. Configure Shiny Server to use renv correctly.
-# This uses 'printf' which is more portable than 'echo -e'.
-# It appends the directive telling shiny-server to run the R process
-# as the user who owns the app files.
-RUN printf "\n# Run applications as the user who owns the app directory\nrun_as :HOME_USER:;\n" >> /etc/shiny-server/shiny-server.conf
+# 7. Configure Shiny Server idempotently.
+# This command checks if the 'run_as :HOME_USER:' line already exists.
+# It only adds the line if it's not found, preventing duplicate entries.
+RUN if ! grep -q "run_as :HOME_USER:;" /etc/shiny-server/shiny-server.conf; then \
+      printf "\n# Run applications as the user who owns the app directory\nrun_as :HOME_USER:;\n" >> /etc/shiny-server/shiny-server.conf; \
+    fi
 
 # 8. Set correct ownership for the shiny user.
 # The :HOME_USER: directive above will now resolve to 'shiny'.
