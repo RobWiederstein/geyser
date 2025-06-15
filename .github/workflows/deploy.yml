@@ -43,7 +43,10 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          #tags: ${{ steps.meta.outputs.tags }}
+          tags:
+            ${{ env.DOCKERHUB_REGISTRY }}:latest
+            ${{ env.DOCKERHUB_REGISTRY }}:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           # ADDED: Caching from the registry to speed up future builds significantly
           #cache-from: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache
