@@ -46,8 +46,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # ADDED: Caching from the registry to speed up future builds significantly
-          cache-from: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache
-          cache-to: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache,mode=max
+          #cache-from: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache
+          #cache-to: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache,mode=max
+          no-cache: true
 
   # REMOVED: The entire 'deploy-to-droplet' job is gone.
   # Watchtower now handles this part automatically on the server.
