@@ -44,7 +44,7 @@ jobs:
           platforms: linux/amd64
           push: true
           #tags: ${{ steps.meta.outputs.tags }}
-          tags:
+          tags: |
             ${{ env.DOCKERHUB_REGISTRY }}:latest
             ${{ env.DOCKERHUB_REGISTRY }}:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
