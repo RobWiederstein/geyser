@@ -1,57 +1,84 @@
-# A descriptive name for your workflow
+# ==============================================================================
+#                 CI/CD Workflow: Build and Push Shiny App
+# ==============================================================================
+#
+# Workflow Name: A human-readable name for this automated process.
 name: Build and Push Geyser Image
 
-# This workflow runs on any push to the 'main' branch
+# ------------------------------------------------------------------------------
+#                                 TRIGGERS
+# ------------------------------------------------------------------------------
+# This section defines when the workflow will automatically run.
 on:
+  # This workflow triggers on every 'push' event to the 'main' branch.
   push:
     branches: [ "main" ]
 
-# ADDED: Define variables here for easy updates in the future
+# ------------------------------------------------------------------------------
+#                                 VARIABLES
+# ------------------------------------------------------------------------------
+# Environment variables make the workflow reusable. For a new project, you
+# would only need to update the DOCKERHUB_REGISTRY value here and the
+# corresponding GitHub secrets.
 env:
   DOCKERHUB_REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}/geyser
-  CONTAINER_NAME: geyser
 
+# ------------------------------------------------------------------------------
+#                                   JOBS
+# ------------------------------------------------------------------------------
+# A workflow is made up of one or more jobs that run in parallel or sequentially.
 jobs:
+  # We have a single job named 'build-and-push'.
   build-and-push:
+    # This job will run on a fresh, virtual machine hosted by GitHub.
     runs-on: ubuntu-latest
+
+    # The 'steps' are the individual commands or actions that make up the job.
     steps:
-      - name: Check out code
+      # --- Step 1: Get the Code ---
+      - name: 'Step 1: Checkout Repository Code'
+        # This action checks out your repository's code onto the runner,
+        # so the workflow can access your Dockerfile and application files.
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        # This combines QEMU and Buildx setup into one step
+      # --- Step 2: Set up Docker Build Environment ---
+      - name: 'Step 2: Set up Docker Buildx'
+        # This action sets up the necessary Docker components within the runner
+        # to enable advanced features like caching and multi-platform builds.
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
-        # UPDATED: Using latest version of the action
+      # --- Step 3: Log in to Docker Hub ---
+      - name: 'Step 3: Log in to Docker Hub'
+        # This action securely logs into Docker Hub using the credentials
+        # stored in your repository's encrypted secrets.
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ADDED: This step creates smart tags like :latest, :v1.2.3, etc. automatically
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.DOCKERHUB_REGISTRY }}
-
-      - name: Build and push image
-        # UPDATED: Using latest version and adding caching
+      # --- Step 4: Build and Push the Docker Image ---
+      - name: 'Step 4: Build, Tag, and Push Docker Image'
+        # This is the main event. This action builds your Dockerfile, tags the
+        # resulting image, and pushes it to your Docker Hub registry.
         uses: docker/build-push-action@v5
         with:
+          # Build from the Dockerfile in the root of the repository.
           context: .
+          # We are building for a standard Linux server.
           platforms: linux/amd64
+          # The 'push: true' flag tells the action to push to Docker Hub
+          # after a successful build.
           push: true
-          #tags: ${{ steps.meta.outputs.tags }}
-          tags: |
-            ${{ env.DOCKERHUB_REGISTRY }}:latest
-            ${{ env.DOCKERHUB_REGISTRY }}:${{ github.sha }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # ADDED: Caching from the registry to speed up future builds significantly
-          #cache-from: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache
-          #cache-to: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache,mode=max
-          no-cache: true
+          # This is the corrected format for tagging. The new image will be tagged
+          # with both ':latest' (for Watchtower) and its unique Git commit hash
+          # (for precise version tracking).
+          tags: ${{ env.DOCKERHUB_REGISTRY }}:latest,${{ env.DOCKERHUB_REGISTRY }}:${{ github.sha }}
+          # This enables caching by saving build layers to the registry.
+          # It dramatically speeds up future builds.
+          cache-from: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache,mode=max
 
-  # REMOVED: The entire 'deploy-to-droplet' job is gone.
-  # Watchtower now handles this part automatically on the server.
+# --- FINAL NOTE ---
+# The deployment step (SSH'ing into the server) has been removed.
+# The Watchtower container running on the 'cobalt-ember' server now handles
+# deployment automatically by detecting when the ':latest' image is updated.
