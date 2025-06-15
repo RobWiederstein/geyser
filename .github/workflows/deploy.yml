@@ -1,61 +1,53 @@
-name: Build & Deploy Geyser
+# A descriptive name for your workflow
+name: Build and Push Geyser Image
 
+# This workflow runs on any push to the 'main' branch
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
+
+# ADDED: Define variables here for easy updates in the future
+env:
+  DOCKERHUB_REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}/geyser
+  CONTAINER_NAME: geyser
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (for multi-arch builds)
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
+        # This combines QEMU and Buildx setup into one step
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+        # UPDATED: Using latest version of the action
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # ADDED: This step creates smart tags like :latest, :v1.2.3, etc. automatically
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_REGISTRY }}
+
       - name: Build and push image
-        uses: docker/build-push-action@v4
+        # UPDATED: Using latest version and adding caching
+        uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # ADDED: Caching from the registry to speed up future builds significantly
+          cache-from: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKERHUB_REGISTRY }}:buildcache,mode=max
 
-  deploy-to-droplet:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            # Log in to Docker Hub on the droplet
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" |
-              docker login \
-                --username "${{ secrets.DOCKERHUB_USERNAME }}" \
-                --password-stdin
-            
-            # Pull and run the updated container
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
-            docker rm -f geyser || true
-            docker run -d \
-              --name geyser \
-              -p 3838:3838 \
-              ${{ secrets.DOCKERHUB_USERNAME }}/geyser:latest
-
+  # REMOVED: The entire 'deploy-to-droplet' job is gone.
+  # Watchtower now handles this part automatically on the server.
